@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 Compare 2 files
 Generate a report with following stats:
@@ -20,6 +19,7 @@ fileAOnly
 fileBOnly
 keyMismatchThreshold - (optional) Number of mismatch samples to report
 """
+
 import sys
 import csv
 from datetime import datetime as dt
@@ -50,48 +50,56 @@ def show_progress(iteration, total, prefix='', suffix='', decimals=1, barlength=
     return len('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix))
 
 def delimit(line, lengths):
-    """Accepts a string as 'line' and yeilds fields of 'lengths' passed """ 
+    """Accept a string as 'line' and yeilds fields of 'lengths' passed """ 
     offset = 0
     for length in lengths:
         yield line[offset:offset+length]
         offset += length
 
-def timestamp(messsage):
-    '''Writes a message to stdout with the current timestamp'''
+def timestamp(message):
+    """Write a message to stdout with the current timestamp"""
     sys.stdout.write(dt.now().strftime("%x %X") + (': %s \n'% message))
 
 def parse_config(configfile):
-    """Parses the config file 'configfile' and returns the parsed key-value pairs as dict"""
+    """Parse the config file 'configfile' and return the parsed key-value pairs as dict"""
     return {k:v for k,v in map(lambda x: x.strip().split('='), filter(lambda x: not x.strip().startswith('#'), 
-        (line for line in open(config))))}
-    # d = {}    
-    # for line in open(configfile):
-    #   if str.strip(line).startswith('#'):
-    #       continue
-    #   else:
-    #       d[line.strip().split('=')[0]] = line.strip().split('=')[1]
-    # return d
+        (line for line in open(configfile))))}
 
 def get_key(data, keyfields):
-    '''Returns a tuple of key with the data and keyfields indexes passed'''
+    """Return a tuple of key with the data and keyfields indexes passed"""
     return tuple([data[i-1] for i in map(int, keyfields.split(','))])
 
+def write_exclusive_recs(config, filename, file_dict, excl_keys):
+    '''
+    write a file with the records exclusive to a given side of the compare
+    '''
+    if excl_keys:
+        with open(filename,'w') as xonly_file:
+            xonly_file.writelines( [''.join(file_dict[_]) + '\n' for _ in excl_keys ])
+
 def get_diff(seqA, seqB, keyfields=None, ignorefields=None):
-    '''Takes following as parameters:
+    """Takes following as parameters:
         sequenceA, sequenceB, 
         list of indices that make the key for the record, 
         list of indices for the the fields that may be ignored
     Returns a list of tuples in the form
-    (inxex of the field in the record, value on sideA, value on sideB, key for the record)'''
+    (index of the field in the record, value on sideA, value on sideB, key for the record)"""
     if keyfields:
         if get_key(seqA, keyfields) != get_key(seqB, keyfields):
             raise KeyError ('Key mismatched')
     elif len(seqA) != len(seqB):
         raise ValueError ('LengthMismatch')
-    return [(i,a,b, get_key(seqA, keyfields)) for i, (a,b) in enumerate(zip(seqA, seqB)) if a != b and str(i+1) not in ignorefields]
-
+    return [(i,a,b, get_key(seqA, keyfields)) for i, (a,b) in enumerate(zip(seqA, seqB)) if a != b and str(i+1)] # Bug!! not in ignorefields]
 
 def main(configfile):
+    '''
+    Does the following:
+    1. Parse the configfile to setup the compare parameters
+    2. Based on whether the files are delimited or fixed length, read the files as dictionaries with key as the record key and value as the record
+    3. This gives us 2 dictionaries dictA, dictB
+    4. Find the keys common between 2 dicts
+    5. Find the records that are exclusive to one file and write those to report files if needed
+    '''
     timestamp('Process Start')
     config = parse_config(configfile)
     diff_count = defaultdict(int) # To store counts of various mismatched fields
@@ -112,7 +120,6 @@ def main(configfile):
         t = show_progress(2,6, prefix='Initial Setup', suffix='Scanning FileB', clrlen=t)
         dictB = OrderedDict( (get_key(x, config['keyfields']), x) for _, x in enumerate(fileB) if _ >= int(config['skipRecs']) )
         t = show_progress(3,6, prefix='Initial Setup', suffix='Finding Common keys', clrlen=t)
-
     elif 'colwidths' in config:
         with open(config['fileA'], 'rb') as fileA, open(config['fileB'], 'rb') as fileB:
             lengths = [ int(x) for x in config['colwidths'].split(',') ]
@@ -127,17 +134,16 @@ def main(configfile):
 
     common_keys = set(dictA.keys()).intersection(set(dictB.keys()))
     t = show_progress(4,6, prefix='Initial Setup', suffix='Finding Aonly recs', clrlen=t)
+        
     aonly_keys = set(dictA.keys()) - set(dictB.keys())
     if 'fileAOnly' in config:
-        if aonly_keys:
-            with open(config['fileAOnly'],'w') as aonly_file:
-                aonly_file.writelines( [''.join(dictA[_]) + '\n' for _ in aonly_keys ])
+        write_exclusive_recs(config, config['fileAOnly'], dictA, aonly_keys)
+
     t = show_progress(5,6, prefix='Initial Setup', suffix='Finding Bonly recs', clrlen=t)
     bonly_keys = set(dictB.keys()) - set(dictA.keys())
     if 'fileBOnly' in config:
-        if bonly_keys:
-            with open(config['fileBOnly'],'w') as bonly_file:
-                bonly_file.writelines( [''.join(dictB[_]) + '\n' for _ in bonly_keys ])
+        write_exclusive_recs(config, config['fileBOnly'], dictB, bonly_keys)
+
     show_progress(6,6, prefix='Initial Setup', suffix='Initial setup complete', clrlen=t)
     timestamp("End Initial Setup & File Read")
 
@@ -157,7 +163,7 @@ def main(configfile):
         except KeyError:
             print "keyMismatch in line number",i
         else:
-            num_fields = len(dictA)#len(lineA)
+            num_fields = len(dictA)
             if diffs:
                 for diff in diffs:
                     diff_count[diff[0]] += 1
@@ -196,7 +202,7 @@ def main(configfile):
         rptwriter.writerow(["Field Name", 'Diff Count'])
 
         for key in diff_count:
-            print file_fields[key], diff_count[key]
+            #print file_fields[key], diff_count[key]
             rptwriter.writerow( [ file_fields[key], diff_count[key]])
         rptwriter.writerow([])
         rptwriter.writerow(["Sample differences:"])
@@ -213,6 +219,6 @@ def main(configfile):
     print"\nComplete!"
 
 if __name__ == "__main__":
-    ''' argv[1] is the full name of the config file'''
+    """ argv[1] is the full name of the config file"""
     main(sys.argv[1])
 
