@@ -69,13 +69,13 @@ def get_key(data, keyfields):
     """Return a tuple of key with the data and keyfields indexes passed"""
     return tuple([data[i-1] for i in map(int, keyfields.split(','))])
 
-def write_exclusive_recs(config, filename, file_dict, excl_keys):
+def write_exclusive_recs(config, filename, file_dict, excl_keys, fileDel):
     '''
     write a file with the records exclusive to a given side of the compare
     '''
     if excl_keys:
         with open(filename,'w') as xonly_file:
-            xonly_file.writelines( [''.join(file_dict[_]) + '\n' for _ in excl_keys ])
+            xonly_file.writelines( [fileDel.join(file_dict[_]) + '\n' for _ in excl_keys ])
 
 def get_diff(seqA, seqB, keyfields=None, ignorefields=None):
     """Takes following as parameters:
@@ -137,12 +137,12 @@ def main(configfile):
         
     aonly_keys = set(dictA.keys()) - set(dictB.keys())
     if 'fileAOnly' in config:
-        write_exclusive_recs(config, config['fileAOnly'], dictA, aonly_keys)
+        write_exclusive_recs(config, config['fileAOnly'], dictA, aonly_keys, config.get('fileADel', ''))
 
     t = show_progress(5,6, prefix='Initial Setup', suffix='Finding Bonly recs', clrlen=t)
     bonly_keys = set(dictB.keys()) - set(dictA.keys())
     if 'fileBOnly' in config:
-        write_exclusive_recs(config, config['fileBOnly'], dictB, bonly_keys)
+        write_exclusive_recs(config, config['fileBOnly'], dictB, bonly_keys, config.get('fileBDel', ''))
 
     show_progress(6,6, prefix='Initial Setup', suffix='Initial setup complete', clrlen=t)
     timestamp("End Initial Setup & File Read")
@@ -217,8 +217,10 @@ def main(configfile):
                 rptwriter.writerow(row)
             show_progress(i,l, prefix='Creating Difference Report', suffix="Done")
             timestamp('End Report Generation')
-        else:
+        if l + len(aonly_keys) + len(bonly_keys) == 0:
             print ("\nNo Differences found!")
+        else:
+            print ("\nDifferences found refer to %s for details"%config['reportfile'] )
     print ("\nComparision Complete!")
 
 if __name__ == "__main__":
