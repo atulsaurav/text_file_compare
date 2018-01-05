@@ -14,7 +14,7 @@ fileBDel - (Needed for delimited files) The delimiter for fileB
 metafile=
 keyfields=
 ignorefields
-skiprecs
+skipRecs - (Mandatory for delimited files)
 fileAOnly
 fileBOnly
 keyMismatchThreshold - (optional) Number of mismatch samples to report
@@ -148,7 +148,7 @@ def main(configfile):
     timestamp("End Initial Setup & File Read")
 
     l = len(common_keys)
-    pct = l/100
+    pct = l/100.0
     for (i,k) in enumerate(common_keys,start=1):
         if i % pct == 0:
             show_progress(i,l, prefix='Comparision Progress', suffix=str(i) )           
@@ -158,10 +158,10 @@ def main(configfile):
             else:
                 diffs = get_diff(dictA[k], dictB[k], config['keyfields'])
         except ValueError:
-            print "LengthMismatch in line number", i
+            print ("LengthMismatch in line number", i)
             continue
         except KeyError:
-            print "keyMismatch in line number",i
+            print ("keyMismatch in line number", i)
         else:
             num_fields = len(dictA)
             if diffs:
@@ -202,13 +202,12 @@ def main(configfile):
         rptwriter.writerow(["Field Name", 'Diff Count'])
 
         for key in diff_count:
-            #print file_fields[key], diff_count[key]
             rptwriter.writerow( [ file_fields[key], diff_count[key]])
         rptwriter.writerow([])
         rptwriter.writerow(["Sample differences:"])
         rptwriter.writerow(["Line#"] + list(get_key(file_fields, config['keyfields'])) + ["Field Name", "FileA Value", "FileB Value"])
         l = len(diff_samples)
-        pct = l/100
+        pct = l/100.0
         for i,d in enumerate(diff_samples, start=1):
             if i % pct == 0:
                 show_progress(i,l, prefix='Creating Report', suffix=str(i) )
@@ -216,9 +215,8 @@ def main(configfile):
             rptwriter.writerow(row)
         show_progress(i,l, prefix='Creating Report', suffix="Done")
     timestamp('End Report Generation')
-    print"\nComplete!"
+    print ("\nComplete!")
 
 if __name__ == "__main__":
     """ argv[1] is the full name of the config file"""
     main(sys.argv[1])
-
