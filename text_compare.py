@@ -198,24 +198,28 @@ def main(configfile):
         rptwriter.writerow(["Rows matched", rec_matched])
         rptwriter.writerow(["Rows mismatched", len(common_keys) - rec_matched])
         rptwriter.writerow([])
-        rptwriter.writerow(["Data Element mismatched stats:"])
-        rptwriter.writerow(["Field Name", 'Diff Count'])
-
-        for key in diff_count:
-            rptwriter.writerow( [ file_fields[key], diff_count[key]])
-        rptwriter.writerow([])
-        rptwriter.writerow(["Sample differences:"])
-        rptwriter.writerow(["Line#"] + list(get_key(file_fields, config['keyfields'])) + ["Field Name", "FileA Value", "FileB Value"])
         l = len(diff_samples)
-        pct = l/100.0
-        for i,d in enumerate(diff_samples, start=1):
-            if i % pct == 0:
-                show_progress(i,l, prefix='Creating Report', suffix=str(i) )
-            row = [d[0]] +  list(d[1][3]) + [file_fields[d[1][0]], d[1][1], d[1][2]]
-            rptwriter.writerow(row)
-        show_progress(i,l, prefix='Creating Report', suffix="Done")
-    timestamp('End Report Generation')
-    print ("\nComplete!")
+        
+        if l:
+            rptwriter.writerow(["Data Element mismatched stats:"])
+            rptwriter.writerow(["Field Name", 'Diff Count'])
+
+            for key in diff_count:
+                rptwriter.writerow( [ file_fields[key], diff_count[key]])
+            rptwriter.writerow([])
+            rptwriter.writerow(["Sample differences:"])
+            rptwriter.writerow(["Line#"] + list(get_key(file_fields, config['keyfields'])) + ["Field Name", "FileA Value", "FileB Value"])
+            pct = l/100.0
+            for i,d in enumerate(diff_samples, start=1):
+                if i % pct == 0:
+                    show_progress(i,l, prefix='Creating Report', suffix=str(i) )
+                row = [d[0]] +  list(d[1][3]) + [file_fields[d[1][0]], d[1][1], d[1][2]]
+                rptwriter.writerow(row)
+            show_progress(i,l, prefix='Creating Difference Report', suffix="Done")
+            timestamp('End Report Generation')
+        else:
+            print ("\nNo Differences found!")
+    print ("\nComparision Complete!")
 
 if __name__ == "__main__":
     """ argv[1] is the full name of the config file"""
